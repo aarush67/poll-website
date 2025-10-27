@@ -1,132 +1,191 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simple Polls & Surveys Generator</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pulse — Simple Polls & Surveys</title>
+
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Firebase SDKs will be added later when you integrate Firebase -->
 </head>
 <body>
-  <div class="app-container">
-    <header>
-      <h1>Simple Polls & Surveys</h1>
-      <p>Create quick polls, share them locally, and get instant feedback.</p>
-    </header>
-
-    <section class="create-poll">
-      <h2>Create a New Poll</h2>
-      <input type="text" id="poll-question" placeholder="Enter your question..." />
-
-      <div id="options-container">
-        <input type="text" class="poll-option" placeholder="Option 1">
-        <input type="text" class="poll-option" placeholder="Option 2">
+  <div id="app">
+    <aside class="sidebar glass">
+      <div class="brand">
+        <div class="logo">🔷</div>
+        <div>
+          <h1>Pulse</h1>
+          <p class="muted">Polls & Surveys</p>
+        </div>
       </div>
 
-      <div class="buttons">
-        <button id="add-option">➕ Add Option</button>
-        <button id="create-poll">✅ Create Poll</button>
-      </div>
-    </section>
+      <nav>
+        <button id="btn-new" class="nav-btn active">New Poll</button>
+        <button id="btn-my" class="nav-btn">My Polls</button>
+        <button id="btn-explore" class="nav-btn">Explore</button>
+        <div class="spacer"></div>
+        <div id="auth-area" class="auth-area">
+          <div id="signed-out">
+            <button id="btn-signin" class="outline">Sign in</button>
+          </div>
+          <div id="signed-in" class="hidden">
+            <div class="user-chip">
+              <div id="user-photo" class="user-photo"></div>
+              <span id="user-name"></span>
+            </div>
+            <button id="btn-signout" class="outline small">Sign out</button>
+          </div>
+        </div>
+      </nav>
+    </aside>
 
-    <section class="polls-list">
-      <h2>Your Polls</h2>
-      <div id="polls"></div>
-    </section>
+    <main class="main">
+      <header class="topbar glass">
+        <div>
+          <h2 id="page-title">Create Poll</h2>
+          <p id="page-sub" class="muted">Fast, private or public polls — share a link or require sign-in.</p>
+        </div>
+        <div class="top-actions">
+          <button id="btn-copy-link" class="ghost hidden">Copy link</button>
+        </div>
+      </header>
+
+      <section id="panel-new" class="panel active">
+        <div class="card">
+          <label class="label">Question</label>
+          <input id="poll-question" class="input" placeholder="e.g. Which time works best for our meeting?" />
+
+          <div id="options-list" class="options-list">
+            <div class="option-row">
+              <input class="input option-input" placeholder="Option 1" />
+              <button class="icon-btn remove hidden" title="remove">✕</button>
+            </div>
+            <div class="option-row">
+              <input class="input option-input" placeholder="Option 2" />
+              <button class="icon-btn remove hidden" title="remove">✕</button>
+            </div>
+          </div>
+
+          <div class="row between">
+            <div class="row gap">
+              <button id="btn-add-option" class="outline small">+ Add option</button>
+              <label class="small muted">Max 6 options</label>
+            </div>
+
+            <div class="row gap">
+              <label class="small muted">Visibility</label>
+              <select id="visibility" class="select">
+                <option value="public">Public — anyone with link</option>
+                <option value="private">Private — require sign-in (invite by email)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="private-invite" class="hidden">
+            <label class="label">Invite emails (comma separated)</label>
+            <input id="invite-emails" class="input" placeholder="alice@example.com, bob@..." />
+            <p class="muted small">Only signed-in users whose email appears here (or the owner) can view & vote.</p>
+          </div>
+
+          <div class="row end gap">
+            <button id="btn-preview" class="ghost">Preview</button>
+            <button id="btn-create" class="primary">Create Poll</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-my" class="panel">
+        <div class="card list-card">
+          <h3>My Polls</h3>
+          <div id="my-polls" class="cards-grid"></div>
+        </div>
+      </section>
+
+      <section id="panel-explore" class="panel">
+        <div class="card list-card">
+          <h3>Explore Public Polls</h3>
+          <div id="explore-polls" class="cards-grid"></div>
+        </div>
+      </section>
+
+      <!-- Poll Viewer Modal -->
+      <div id="poll-modal" class="modal hidden glass">
+        <div class="modal-inner">
+          <button id="modal-close" class="modal-close">✕</button>
+          <div id="poll-view"></div>
+        </div>
+      </div>
+    </main>
   </div>
 
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- IMPORTANT: Firebase SDKs and app code are inserted here by you following the Firebase instructions below. -->
   <script>
-    const pollsContainer = document.getElementById("polls");
-    const addOptionBtn = document.getElementById("add-option");
-    const createPollBtn = document.getElementById("create-poll");
-    const optionsContainer = document.getElementById("options-container");
+  // Lightweight client helpers for UI interactions. The Firebase app code will call these functions.
+  (function(){
+    const qs = s => document.querySelector(s);
+    const qsa = s => Array.from(document.querySelectorAll(s));
+    const show = el => el && el.classList.remove('hidden');
+    const hide = el => el && el.classList.add('hidden');
+    const toast = (msg, t=2500) => {
+      const to = qs('#toast');
+      to.textContent = msg;
+      to.classList.remove('hidden');
+      setTimeout(()=> to.classList.add('hidden'), t);
+    };
 
-    let polls = JSON.parse(localStorage.getItem("polls")) || [];
-
-    function savePolls() {
-      localStorage.setItem("polls", JSON.stringify(polls));
+    // Navigation
+    const panels = { new: qs('#panel-new'), my: qs('#panel-my'), explore: qs('#panel-explore') };
+    function setPanel(name) {
+      Object.values(panels).forEach(p=> p.classList.remove('active'));
+      panels[name].classList.add('active');
+      qsa('.nav-btn').forEach(b=> b.classList.remove('active'));
+      qs(`#btn-${name}`).classList.add('active');
+      qs('#page-title').textContent = name === 'new' ? 'Create Poll' : name === 'my' ? 'My Polls' : 'Explore';
+      qs('#page-sub').textContent = name === 'new' ? 'Fast, private or public polls — share a link or require sign-in.' : '';
     }
+    qs('#btn-new').onclick = () => setPanel('new');
+    qs('#btn-my').onclick = () => setPanel('my');
+    qs('#btn-explore').onclick = () => setPanel('explore');
 
-    function renderPolls() {
-      pollsContainer.innerHTML = "";
-      if (polls.length === 0) {
-        pollsContainer.innerHTML = `<p class="empty">No polls yet — create one above!</p>`;
-        return;
-      }
+    // Add option
+    qs('#btn-add-option').onclick = () => {
+      const count = qsa('.option-row').length;
+      if (count >= 6) return toast('Max 6 options');
+      const row = document.createElement('div');
+      row.className = 'option-row';
+      row.innerHTML = `<input class="input option-input" placeholder="Option ${count+1}" /><button class="icon-btn remove" title="remove">✕</button>`;
+      qs('#options-list').appendChild(row);
+      row.querySelector('.remove').onclick = () => row.remove();
+    };
 
-      polls.forEach((poll, index) => {
-        const div = document.createElement("div");
-        div.className = "poll-card glass";
-
-        div.innerHTML = `
-          <h3>${poll.question}</h3>
-          ${poll.options
-            .map(
-              (opt, i) => `
-                <button class="vote-btn" data-poll="${index}" data-opt="${i}">
-                  ${opt.text} — <span>${opt.votes}</span> votes
-                </button>
-              `
-            )
-            .join("")}
-        `;
-        pollsContainer.appendChild(div);
-      });
-    }
-
-    function addOptionField() {
-      if (optionsContainer.children.length >= 6) return;
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = `Option ${optionsContainer.children.length + 1}`;
-      input.className = "poll-option";
-      optionsContainer.appendChild(input);
-    }
-
-    function createPoll() {
-      const question = document.getElementById("poll-question").value.trim();
-      const options = [...document.querySelectorAll(".poll-option")]
-        .map(opt => opt.value.trim())
-        .filter(Boolean);
-
-      if (!question || options.length < 2) {
-        alert("Please enter a question and at least two options!");
-        return;
-      }
-
-      const newPoll = {
-        question,
-        options: options.map(opt => ({ text: opt, votes: 0 }))
-      };
-
-      polls.push(newPoll);
-      savePolls();
-      renderPolls();
-
-      document.getElementById("poll-question").value = "";
-      optionsContainer.innerHTML = `
-        <input type="text" class="poll-option" placeholder="Option 1">
-        <input type="text" class="poll-option" placeholder="Option 2">
-      `;
-    }
-
-    function vote(pollIndex, optionIndex) {
-      polls[pollIndex].options[optionIndex].votes++;
-      savePolls();
-      renderPolls();
-    }
-
-    pollsContainer.addEventListener("click", e => {
-      if (e.target.classList.contains("vote-btn")) {
-        const pollIndex = e.target.dataset.poll;
-        const optIndex = e.target.dataset.opt;
-        vote(pollIndex, optIndex);
-      }
+    // Toggle private invite input
+    qs('#visibility').addEventListener('change', e => {
+      if (e.target.value === 'private') show(qs('#private-invite'));
+      else hide(qs('#private-invite'));
     });
 
-    addOptionBtn.addEventListener("click", addOptionField);
-    createPollBtn.addEventListener("click", createPoll);
+    // Preview
+    qs('#btn-preview').onclick = () => {
+      const question = qs('#poll-question').value.trim();
+      const opts = qsa('.option-input').map(i=> i.value.trim()).filter(Boolean);
+      if (!question || opts.length < 2) return toast('Enter a question and at least 2 options');
+      const html = `<h3>${escapeHtml(question)}</h3>` + opts.map((o,idx)=>`<div class="pv-opt">${escapeHtml(o)}</div>`).join('');
+      qs('#poll-view').innerHTML = html;
+      show(qs('#poll-modal'));
+    };
 
-    renderPolls();
+    qs('#modal-close').onclick = () => hide(qs('#poll-modal'));
+
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+    // Expose small API to global for Firebase script to use
+    window.PulseUI = {
+      toast, show, hide, qs, qsa, setPanel, escapeHtml
+    };
+  })();
   </script>
 </body>
 </html>
