@@ -7,40 +7,38 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header>
-    <h1>Pulse Polls</h1>
-    <div id="auth-buttons">
-      <button id="google-signin">Sign in with Google</button>
-      <button id="signout" style="display:none;">Sign Out</button>
-    </div>
-  </header>
+<header>
+  <h1>Pulse Polls</h1>
+  <div id="auth-buttons">
+    <button id="google-signin">Sign in with Google</button>
+    <button id="signout" style="display:none;">Sign Out</button>
+  </div>
+</header>
 
-  <main>
-    <section id="create-poll">
-      <h2>Create a Poll</h2>
-      <input type="text" id="poll-title" placeholder="Poll title">
-      <textarea id="poll-options" placeholder="Enter options separated by commas"></textarea>
-      <select id="poll-visibility">
-        <option value="public">Public</option>
-        <option value="private">Private</option>
-      </select>
-      <button id="create-poll-btn">Create Poll</button>
-    </section>
+<main>
+  <section id="create-poll">
+    <h2>Create a Poll</h2>
+    <input type="text" id="poll-title" placeholder="Poll title">
+    <textarea id="poll-options" placeholder="Options separated by commas"></textarea>
+    <select id="poll-visibility">
+      <option value="public">Public</option>
+      <option value="private">Private</option>
+    </select>
+    <button id="create-poll-btn">Create Poll</button>
+    <p id="private-url" style="word-break: break-word;"></p>
+  </section>
 
-    <section id="poll-list">
-      <h2>Available Polls</h2>
-      <ul id="polls"></ul>
-    </section>
-  </main>
+  <section id="poll-list">
+    <h2>Polls</h2>
+    <ul id="polls"></ul>
+  </section>
+</main>
 
 <script type="module">
-  // Firebase imports
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
   import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, doc, getDocs, onSnapshot, updateDoc, arrayUnion, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, query, where } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-  // Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyBJSa3mn6TWLU8gXIpm1SBFPmfEdBY2Sc8",
     authDomain: "pulse-b8d03.firebaseapp.com",
@@ -51,9 +49,7 @@
     measurementId: "G-MHL78LEBHF"
   };
 
-  // Initialize Firebase
   const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
   const auth = getAuth(app);
   const db = getFirestore(app);
   const provider = new GoogleAuthProvider();
@@ -62,10 +58,10 @@
   const signoutBtn = document.getElementById('signout');
   const createBtn = document.getElementById('create-poll-btn');
   const pollList = document.getElementById('polls');
+  const privateUrlDisplay = document.getElementById('private-url');
 
   let currentUser = null;
 
-  // Auth
   googleBtn.onclick = () => signInWithPopup(auth, provider);
   signoutBtn.onclick = () => signOut(auth);
 
@@ -79,6 +75,14 @@
       signoutBtn.style.display = "none";
     }
   });
+
+  // Helper: generate random secretId
+  function generateSecretId(length = 32){
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for(let i=0;i<length;i++) result += chars.charAt(Math.floor(Math.random()*chars.length));
+    return result;
+  }
 
   // Create Poll
   createBtn.onclick = async () => {
@@ -97,45 +101,65 @@
     }
 
     const options = optionsText.split(',').map(o => o.trim()).filter(Boolean);
+    const secretId = visibility === "private" ? generateSecretId() : "";
+
     const pollData = {
       title,
       options: options.map(opt => ({name: opt, votes: []})),
       visibility,
       owner: currentUser.uid,
+      secretId,
       createdAt: serverTimestamp()
     };
 
-    await addDoc(collection(db, 'polls'), pollData);
+    const docRef = await addDoc(collection(db,'polls'), pollData);
     document.getElementById('poll-title').value = '';
     document.getElementById('poll-options').value = '';
+
+    if(visibility === "private"){
+      privateUrlDisplay.innerText = `Private URL: ${window.location.origin}?poll=${secretId}`;
+    } else {
+      privateUrlDisplay.innerText = '';
+    }
   };
 
-  // List Polls
-  const pollCol = collection(db, 'polls');
-  onSnapshot(pollCol, snapshot => {
-    pollList.innerHTML = '';
-    snapshot.docs.forEach(docSnap => {
-      const data = docSnap.data();
-      const li = document.createElement('li');
-      li.innerHTML = `<strong>${data.title}</strong> (${data.visibility}) <br> ${data.options.map((opt,i) => `<button onclick="vote('${docSnap.id}',${i})">${opt.name} (${opt.votes.length})</button>`).join(' ')}`;
-      pollList.appendChild(li);
-    });
-  });
+  // Show polls
+  async function loadPolls(){
+    onSnapshot(collection(db,'polls'), snapshot => {
+      pollList.innerHTML = '';
+      const urlParams = new URLSearchParams(window.location.search);
+      const secretParam = urlParams.get('poll');
 
-  // Vote
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const li = document.createElement('li');
+
+        // Only show public polls or private polls if secret matches
+        if(data.visibility === "public" || (data.visibility === "private" && secretParam === data.secretId)){
+          li.innerHTML = `<strong>${data.title}</strong> (${data.visibility}) <br>
+            ${data.options.map((opt,i) => `<button onclick="vote('${docSnap.id}',${i})">${opt.name} (${opt.votes.length})</button>`).join(' ')}`;
+          pollList.appendChild(li);
+        }
+      });
+    });
+  }
+
+  loadPolls();
+
+  // Voting
   window.vote = async (pollId, optionIndex) => {
-    if(!currentUser){
-      alert("Sign in to vote!");
-      return;
+    const pollRef = doc(db,'polls',pollId);
+
+    if(currentUser){
+      await updateDoc(pollRef, {
+        [`options.${optionIndex}.votes`]: arrayUnion(currentUser.uid)
+      });
+    } else {
+      // anonymous vote: store as "guest"
+      await updateDoc(pollRef, {
+        [`options.${optionIndex}.votes`]: arrayUnion("guest")
+      });
     }
-
-    const pollRef = doc(db, 'polls', pollId);
-    const pollSnap = await getDocs(collection(db, 'polls'));
-    const poll = (await pollRef.get()).data();
-
-    await updateDoc(pollRef, {
-      [`options.${optionIndex}.votes`]: arrayUnion(currentUser.uid)
-    });
   };
 </script>
 </body>
