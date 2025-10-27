@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Polls & Surveys Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Simple Polls & Surveys</h1>
+      <p>Create quick polls, share them locally, and get instant feedback.</p>
+    </header>
+
+    <section class="create-poll">
+      <h2>Create a New Poll</h2>
+      <input type="text" id="poll-question" placeholder="Enter your question..." />
+
+      <div id="options-container">
+        <input type="text" class="poll-option" placeholder="Option 1">
+        <input type="text" class="poll-option" placeholder="Option 2">
+      </div>
+
+      <div class="buttons">
+        <button id="add-option">➕ Add Option</button>
+        <button id="create-poll">✅ Create Poll</button>
+      </div>
+    </section>
+
+    <section class="polls-list">
+      <h2>Your Polls</h2>
+      <div id="polls"></div>
+    </section>
+  </div>
+
+  <script>
+    const pollsContainer = document.getElementById("polls");
+    const addOptionBtn = document.getElementById("add-option");
+    const createPollBtn = document.getElementById("create-poll");
+    const optionsContainer = document.getElementById("options-container");
+
+    let polls = JSON.parse(localStorage.getItem("polls")) || [];
+
+    function savePolls() {
+      localStorage.setItem("polls", JSON.stringify(polls));
+    }
+
+    function renderPolls() {
+      pollsContainer.innerHTML = "";
+      if (polls.length === 0) {
+        pollsContainer.innerHTML = `<p class="empty">No polls yet — create one above!</p>`;
+        return;
+      }
+
+      polls.forEach((poll, index) => {
+        const div = document.createElement("div");
+        div.className = "poll-card glass";
+
+        div.innerHTML = `
+          <h3>${poll.question}</h3>
+          ${poll.options
+            .map(
+              (opt, i) => `
+                <button class="vote-btn" data-poll="${index}" data-opt="${i}">
+                  ${opt.text} — <span>${opt.votes}</span> votes
+                </button>
+              `
+            )
+            .join("")}
+        `;
+        pollsContainer.appendChild(div);
+      });
+    }
+
+    function addOptionField() {
+      if (optionsContainer.children.length >= 6) return;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = `Option ${optionsContainer.children.length + 1}`;
+      input.className = "poll-option";
+      optionsContainer.appendChild(input);
+    }
+
+    function createPoll() {
+      const question = document.getElementById("poll-question").value.trim();
+      const options = [...document.querySelectorAll(".poll-option")]
+        .map(opt => opt.value.trim())
+        .filter(Boolean);
+
+      if (!question || options.length < 2) {
+        alert("Please enter a question and at least two options!");
+        return;
+      }
+
+      const newPoll = {
+        question,
+        options: options.map(opt => ({ text: opt, votes: 0 }))
+      };
+
+      polls.push(newPoll);
+      savePolls();
+      renderPolls();
+
+      document.getElementById("poll-question").value = "";
+      optionsContainer.innerHTML = `
+        <input type="text" class="poll-option" placeholder="Option 1">
+        <input type="text" class="poll-option" placeholder="Option 2">
+      `;
+    }
+
+    function vote(pollIndex, optionIndex) {
+      polls[pollIndex].options[optionIndex].votes++;
+      savePolls();
+      renderPolls();
+    }
+
+    pollsContainer.addEventListener("click", e => {
+      if (e.target.classList.contains("vote-btn")) {
+        const pollIndex = e.target.dataset.poll;
+        const optIndex = e.target.dataset.opt;
+        vote(pollIndex, optIndex);
+      }
+    });
+
+    addOptionBtn.addEventListener("click", addOptionField);
+    createPollBtn.addEventListener("click", createPoll);
+
+    renderPolls();
+  </script>
+</body>
+</html>
