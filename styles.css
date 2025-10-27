@@ -1,0 +1,190 @@
+/* ---------- Base Setup ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #0b0f19;
+  --accent: #64c9ff;
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.25);
+  --text: #f5f5f7;
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --blur: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: radial-gradient(circle at 30% 50%, #101624, #06080f 80%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+/* ---------- App Container ---------- */
+.app-container {
+  width: 95%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  animation: fadeIn 0.7s ease;
+}
+
+header {
+  text-align: center;
+}
+
+header h1 {
+  font-size: 2.2rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent), #a0f0ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.4rem;
+}
+
+header p {
+  color: #b3b9c5;
+  font-size: 1rem;
+}
+
+/* ---------- Glass Effect ---------- */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  transition: all 0.3s ease;
+}
+
+.glass:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---------- Sections ---------- */
+.create-poll,
+.polls-list {
+  padding: 1.5rem;
+  border-radius: 18px;
+  background: var(--glass-bg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--glass-border);
+}
+
+h2 {
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 500;
+}
+
+input[type="text"] {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin-bottom: 0.8rem;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.3s;
+}
+
+input[type="text"]:focus {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ---------- Buttons ---------- */
+button {
+  background: linear-gradient(135deg, #3b8cff, #64c9ff);
+  color: white;
+  font-weight: 500;
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  background: linear-gradient(135deg, #5cc8ff, #90e7ff);
+  transform: translateY(-2px);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.buttons {
+  display: flex;
+  gap: 0.6rem;
+}
+
+/* ---------- Poll Cards ---------- */
+.poll-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 15px;
+  animation: pop 0.3s ease;
+}
+
+.poll-card h3 {
+  margin-bottom: 0.8rem;
+  font-size: 1.2rem;
+}
+
+.vote-btn {
+  display: block;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 0.6rem;
+  margin: 0.4rem 0;
+  text-align: left;
+  font-size: 0.95rem;
+  transition: all 0.25s ease;
+}
+
+.vote-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: var(--accent);
+}
+
+/* ---------- Empty State ---------- */
+.empty {
+  text-align: center;
+  color: #98a1b3;
+  font-style: italic;
+}
+
+/* ---------- Animations ---------- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+  h1 { font-size: 1.7rem; }
+  h2 { font-size: 1.1rem; }
+  button { font-size: 0.9rem; }
+}
